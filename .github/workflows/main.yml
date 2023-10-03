@@ -1,0 +1,67 @@
+name: 1 Initial - ECS Prefect agent
+
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Name of the project
+        required: true
+        type: string
+      cpu:
+        description: CPU for the agent
+        required: true
+        default: "512"
+        type: choice
+        options: ["256", "512", "1024", "2048", "4096"]
+      memory:
+        description: Memory for the agent
+        required: true
+        default: "1024"
+        type: choice
+        options: ["512", "1024", "2048", "4096", "5120", "6144", "7168", "8192"]
+      block_name:
+        description: Name of the S3 and ECS blocks
+        required: true
+        default: "prod"
+      prefect-version:
+        description: Prefect version for flows
+        required: true
+        default: "2.*"
+        type: string
+      aws-region:
+        description: AWS Region
+        required: true
+        default: "eu-central-1"
+        type: string
+
+env:
+  PROJECT: ${{ github.event.inputs.project }}
+  ECS_CLUSTER: "prefect-${{ github.event.inputs.project }}"
+  BLOCK: prod
+  AWS_REGION: ${{ github.event.inputs.aws-region }}
+  PREFECT_VERSION: ${{ github.event.inputs.prefect-version }}
+  S3_PATH: "prefect-${{ github.event.inputs.project }}"
+
+jobs:
+  create-s3-bucket:
+    name: Create S3 Bucket
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: "no"
+    
+      - name: Create S3 Bucket
+        run: |
+          aws s3api create-bucket --bucket ${{ env.S3_PATH }} --region ${{ env.AWS_REGION }}  --create-bucket-configuration LocationConstraint=${{ env.AWS_REGION }}
